@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Camera Model -->
+    <arg name="node_name"                           default="zed_node" />
+    <!-- Camera Model -->
+    <arg name="camera_model"                        default="zedm" /> <!-- 'zed' or 'zedm' -->
+    <!-- Load SVO file -->
+    <arg name="svo_file"                            default="$(find visguide)/data_30fps.svo" /><!--default="$(find visguide)/data.svo"> -->
+    <!-- Remote stream -->
+    <arg name="stream"                              default="" /> <!-- <arg name="stream" default="<ip_address>:<port>"> -->
+    <!-- Publish ZED urdf -->
+    <arg name="publish_urdf"                        default="true" />
+    <arg name="zed_node_name"                   default="zed_node" />
+
+    <arg name="camera_id"                           default="-1" />
+    <arg name="gpu_id"                              default="-1" />
+    <arg name="pkg_namespace"		    		    default="visguide" />
+
+    <!--group ns="$(arg pkg_namespace)"-->
+    <!-- ROS URDF description of the ZED -->
+    <group if="$(arg publish_urdf)">
+        <param name="zed_description" textfile="$(find zed_wrapper)/urdf/$(arg camera_model).urdf" />
+        <node name="zed_state_publisher" pkg="robot_state_publisher" type="state_publisher">
+            <remap from="robot_description" to="zed_description" />
+        </node>
+    </group>
+
+    <node name="$(arg node_name)" pkg="zed_wrapper" type="zed_wrapper_node" output="screen" required="true"><!-- launch-prefix="valgrind" -->
+        <rosparam file="$(find zed_wrapper)/params/common.yaml" command="load" />
+        <rosparam file="$(find zed_wrapper)/params/$(arg camera_model).yaml" command="load" />
+        <!-- SVO file path -->
+        <param name="svo_file"                      value="$(arg svo_file)" />
+        <!-- Remote stream -->
+        <param name="stream"                        value="$(arg stream)" />
+        <!-- Freq of point cloud publishing should be =< frame_rate -->
+        <param name="point_cloud_freq"              value="20.0" />
+        <!-- Camera ID -->
+        <param name="general/zed_id"                value="$(arg camera_id)" />
+        <!-- GPU ID -->
+        <param name="general/gpu_id"                value="$(arg gpu_id)" />
+        <!-- Camera Resolution -->
+        <param name="general/resolution"            value="3" />    <!-- '0': HD2K, '1': HD1080, '2': HD720, '3': VGA --> 
+        <!-- Camera FPS -->
+        <param name="general/frame_rate"            value="30" />
+        <!-- Depth Quality -->
+        <param name="depth/quality"                 value="1" />     <!-- '0': NONE, '1': PERFORMANCE, '2': MEDIUM, '3': QUALITY, '4': ULTRA -->
+	<!-- Depth Mode -->
+        <param name="depth/sensing_mode"            value="0" />     <!-- '0': STANDARD, '1': FILL -->        
+        <!-- Publish Transform -->
+        <param name="tracking/publish_tf"           value="true" />    <!--  'publish `odom -> base_link` TF -->
+        <!-- Publish Transform -->
+        <param name="tracking/publish_map_tf"       value="true" />    <!--  publish `map -> odom` TF -->
+    </node>
+    <!--/group-->
+</launch>

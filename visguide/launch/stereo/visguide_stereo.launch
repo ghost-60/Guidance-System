@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<launch>
+	<arg name="pkg_namespace"		    		default="visguide" />
+    <arg name="zed_node_name"                   default="zed_node" />
+    <arg name="camera_model"                    default="zedm" /> <!-- 'zed' or 'zedm' -->
+    <arg name="publish_urdf"                    default="true" />
+
+	<!-- ZED MINI Node -->
+	<group ns="$(arg pkg_namespace)">
+		<include file="$(find visguide)/launch/zedm.launch" />
+	</group>
+	<!-- RTAB-map Node-->
+    <include file="$(find visguide)/launch/rtabMap.launch">
+      <!--arg name="rtabmap_args"                  value="delete_db_on_start" /-->
+      <arg name="rtabmap_args"                  value="--delete_db_on_start" />
+      <arg name="rgb_topic"               		value="/$(arg pkg_namespace)/$(arg zed_node_name)/rgb/image_rect_color" />
+      <arg name="depth_topic"             		value="/$(arg pkg_namespace)/$(arg zed_node_name)/depth/depth_registered" />
+      <arg name="camera_info_topic"       		value="/$(arg pkg_namespace)/$(arg zed_node_name)/rgb/camera_info" />
+      <arg name="depth_camera_info_topic" 		value="/$(arg pkg_namespace)/$(arg zed_node_name)/depth/camera_info" />
+      <arg name="frame_id"                      value="base_link" />
+      <arg name="approx_sync"                   value="false" />
+      <arg name="visual_odometry"               value="false" />
+      <arg name="odom_topic"                    value="/$(arg pkg_namespace)/$(arg zed_node_name)/odom" />
+      <arg name="rviz"                          value="true" />
+      <arg name="rtabmapviz" 			value="false" />
+      <arg name="localization"                  value="false"/>
+</include>
+
+</launch>

@@ -1,0 +1,45 @@
+<launch>
+  <arg name="use_zed"               default="true"   doc="Set to false when using Intel Realsense D435"/>  
+  <arg name="generate_point_cloud"  default="false"  doc="Generate point cloud from input_image and input_depth"/>
+  
+  <!-- TOPICS -->
+  <arg     if="$(arg use_zed)" name="input_image"        default="/visguide/zed_node/left/image_rect_color"/>
+  <arg     if="$(arg use_zed)" name="input_depth"        default="/visguide/zed_node/depth/depth_registered"/>
+  <arg     if="$(arg use_zed)" name="input_camera_info"  default="/visguide/zed_node/left/camera_info"/>
+  <arg     if="$(arg use_zed)" name="point_cloud_topic"  default="/visguide/zed_node/point_cloud/cloud_registered"/>
+
+  <!-- NODELET -->
+  <arg name="MANAGER" value="detection_manager" />
+  <node pkg="nodelet" type="nodelet" args="manager"
+	name="$(arg MANAGER)" output="screen"/>
+
+
+  <!-- COORDINATES -->
+  <node pkg="nodelet" type="nodelet" name="label_mask"
+  	args="load jsk_pcl_utils/LabelToClusterPointIndices $(arg MANAGER)">
+    <remap from="~input" to="/visguide/zed_node/label/image_rect_color"/>
+    <remap from="~output" to="/visguide/cluster_points"/>
+  </node>
+
+  <node pkg="nodelet" type="nodelet" name="cluster_decomposer"
+  	args="load jsk_pcl/ClusterPointIndicesDecomposer $(arg MANAGER)">
+    <remap from="~input" to="$(arg point_cloud_topic)"/>
+    <remap from="~target" to="/visguide/cluster_points"/>
+    <rosparam>
+      approximate_sync: true
+
+      <!-- TARGET FRAME -->
+      align_boxes: true
+      align_boxes_with_plane: false
+      target_frame_id: map
+
+      <!-- PUBLISH TF -->
+      publish_tf: true
+      tf_prefix: yolo_
+    
+      </rosparam>
+  </node>
+
+  <!-- <node pkg="visguide" type="detection_collector.py" name="detection_collector" output="screen"/> -->
+
+</launch>
