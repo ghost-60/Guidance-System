@@ -1,0 +1,5 @@
+<launch>
+ <node pkg="visguide" type="visguide_node" respawn="false" name="visguide_node" output="screen">
+    <rosparam file="$(find visguide)/launch/custom_map.yaml" command="load" />
+  </node>
+</launch>

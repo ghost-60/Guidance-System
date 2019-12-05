@@ -1,0 +1,28 @@
+custom_map:
+  #Set the global and robot frames for the costmap
+  global_frame: map
+  robot_base_frame: base_link
+
+  #Set the update and publish frequency of the costmap
+  update_frequency: 2.0
+  publish_frequency: 2.0
+  width: 100
+  height: 100
+  origin_x: -10
+  origin_y: -10
+  inflation_radius: 0.01
+  resolution: 0.1
+  
+  #We'll use a map served by the map_server to initialize this costmap
+  static_map: true
+  rolling_window: false
+
+  use_dijkstra: false
+
+  plugins:
+  - {name: static_layer, type: "costmap_2d::StaticLayer"}
+  - {name: obstacle_layer, type: "costmap_2d::ObstacleLayer"}
+  - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
+
+  static_layer:
+    map_topic: /rtabmap/grid_map
