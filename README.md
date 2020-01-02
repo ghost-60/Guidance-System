@@ -39,6 +39,7 @@ $ catkin_make
 
 1. Run semantic segmentaion
 ```
+$ roscore
 $ cd /path/to/semantic/segmentation
 $ python sample_Resnet18.py
 ```
@@ -66,7 +67,6 @@ $ rviz
 (Note: imu data is not stored in svo file. Use rosbag to collect imu data)
 - Use rviz to view live image.
 ```
-$ roscore
 $ roslaunch zed_wrapper zedm.launch
 $ rosservice call /zed/zed_node/start_svo_recording svo_filename:= /path/to/svo/file_name.svo
 $ rosservice call /zed/zed_node/stop_svo_recording
