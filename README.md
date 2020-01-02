@@ -42,8 +42,7 @@ $ catkin_make
 1. Run semantic segmentaion
 ```
 $ roscore
-$ cd /path/to/semantic/segmentation
-$ python sample_Resnet18.py
+$ rosrun visguide segment.py
 ```
 2. Run the rtabmap and zed camera.
 ```
