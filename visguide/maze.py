@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 
 #WTF IS GOING ON !!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -209,27 +209,27 @@ class Particle(object):
 
     def __init__(self, x, y, maze, heading = None, weight = 1.0, sensor_limit = None, noisy = False):
 
+        if heading is None:
+            heading = np.random.uniform(0,360)
         self.x = x
         self.y = y
-        self.heading = 90
+        self.heading = 0
         self.weight = weight
         self.maze = maze
         self.sensor_limit = sensor_limit
-
         if noisy:
-            std = max(self.maze.grid_height, self.maze.grid_width) * 0.2
-            self.x = self.add_noise(x = self.x, std = std)
-            self.y = self.add_noise(x = self.y, std = std)
-            self.heading = self.add_noise(x = self.heading, std = 360 * 0.05)
+            self.add_noise()
 
     @property
     def state(self):
 
         return (self.x, self.y, self.heading)
 
-    def add_noise(self, x, std):
-
-        return x + np.random.normal(0, std)
+    def add_noise(self):
+        std = max(self.maze.grid_height, self.maze.grid_width) * 0.2
+        self.x = self.x + np.random.normal(0, std)
+        self.y = self.y + np.random.normal(0, std)
+        self.heading = self.heading + np.random.normal(0, 360 * 0.05) 
 
     def read_sensor(self, maze):
         readings = []
@@ -240,16 +240,39 @@ class Particle(object):
                 readings.append(d)
         return readings
     
-    def try_move(self, maze, dx, dy, noisy = False):
-        angle = math.radians(self.heading)        
-        x = self.x + (dx * math.cos(angle) - dy * math.sin(angle))
-        y = self.y + (dx * math.sin(angle) + dy * math.cos(angle))
+    def try_move(self, maze, cur_pose, prev_pose, noisy = False):
+        # angle = math.radians(self.heading)        
+        # x = self.x + (dx * math.cos(angle) - dy * math.sin(angle))
+        # y = self.y + (dx * math.sin(angle) + dy * math.cos(angle))
+        # self.x = x
+        # self.y = y
+        alpha = [0.05, 0.05, 0.1, 0.1]
+        deltaRot1 = math.atan2(cur_pose[1] - prev_pose[1], cur_pose[0] - prev_pose[0]) - prev_pose[2]
+        #print(cur_pose, prev_pose)
+        deltaTrans = 10 * math.sqrt((cur_pose[0] - prev_pose[0]) ** 2 + (cur_pose[1] - prev_pose[1]) ** 2)
+        deltaRot2 = cur_pose[2] - prev_pose[2] - deltaRot1
+
+
+        trueRot1 = deltaRot1 - self.sample(mu=0, sigma=alpha[0] * math.fabs(deltaRot1) + alpha[1] * math.fabs(deltaTrans))
+
+
+        trueTrans = deltaTrans - self.sample(mu=0, sigma=alpha[2] * math.fabs(deltaTrans) + alpha[3] * (
+        math.fabs(deltaRot1) + math.fabs(deltaRot2)))
+
+        trueRot2 = deltaRot2 - self.sample(mu=0, sigma=alpha[0] * math.fabs(deltaRot2) + alpha[1] * math.fabs(deltaTrans))
+
+        x = self.x + trueTrans * math.cos(math.radians(self.heading) + trueRot1)
+        y = self.y + trueTrans * math.sin(math.radians(self.heading) + trueRot1)
+        theta = self.heading + math.degrees(trueRot1 + trueRot2)
 
         if((x >= 29 and x <= 241 and y >= 29 and y <= 301) or (x <= 1 or y <= 1 or x >= 268 or y >= 328)):
             return 0
         self.x = x
         self.y = y
+        self.heading = theta
         return 1
+    def sample(self, mu, sigma):
+        return np.random.normal(mu, sigma)
         
 
 class WeightedDistribution(object):
@@ -286,10 +309,3 @@ def weight_gaussian_kernel(x1, x2):
         wt2 += np.min(np.abs(np.subtract(x2, x1[i])))
     wt2 = ((1 - alpha) / wt2) + (alpha * wt)
     return wt2
-
-
-
-
-
-
-

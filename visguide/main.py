@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 
 import numpy as np 
 import turtle
@@ -13,7 +13,6 @@ from nav_msgs.msg import Odometry, OccupancyGrid
 from detection_clustering import DetectionClustering
 from geometry_msgs.msg import PoseArray, Pose
 from std_msgs.msg import Float32MultiArray, MultiArrayDimension
-from turtlebot3_slam_3d.msg import floatArray, float2dArray
 
 class Particle_Filter(object):
     def __init__(self, window_width, window_height, num_particles, sensor_limit_ratio, grid_height, grid_width, num_rows, num_cols, wall_prob, random_seed, robot_speed, kernel_sigma, particle_show_frequency):
@@ -23,10 +22,8 @@ class Particle_Filter(object):
         self.world = Maze(grid_height = grid_height, grid_width = grid_width, num_rows = num_rows, num_cols = num_cols, wall_prob = wall_prob, random_seed = random_seed)
         self.particle_show_frequency = particle_show_frequency
         self.num_particles = num_particles
-        self.prev_x = 0
-        self.prev_y = 0
-        self.live_x = 0
-        self.live_y = 0
+        self.prev_pose = [0, 0, 0]
+        self.cur_pose = [0, 0, 0]
         self.counter = 0
         self.tracker = 0
         self.dc = None
@@ -56,39 +53,36 @@ class Particle_Filter(object):
         
         
         readings_robot = []
-
+        
         while(1):
-            
-            dx = self.live_x
-            dy = self.live_y
-            
             # Particle filtering
-            self.filtering()
+            #self.filtering()
             
             for particle in self.particles:
-                permissible = particle.try_move(maze=self.world, dx=dx*10, dy=dy*10)
+                permissible = particle.try_move(maze=self.world, cur_pose=self.cur_pose,\
+                    prev_pose=self.prev_pose)
                 if(permissible == 0):
-                    particle_new = self.distribution.random_select()
-                    particle.x = particle_new.x
-                    particle.y = particle_new.y
-                    particle.heading = particle_new.heading
-                    particle.weight /= 2
+                    particle = self.selectParticle()
+                    while(not self.check_permissible_space(x=particle.x, y=particle.y)):
+                        particle = self.selectParticle()
                     
-            self.prev_x = self.live_x
-            self.prev_y = self.live_y
+            self.prev_pose = list(self.cur_pose)
             self.world.show_particles(particles = self.particles, show_frequency = self.particle_show_frequency)
             rospy.Subscriber('/visguide/zed_node/odom', Odometry, self.callback)
             rospy.Subscriber('/cluster_decomposer/centroid_pose_array', PoseArray, self.collect)
             self.world.clear_objects()
 
+    def selectParticle(self):
+        particle_new = self.distribution.random_select()
+        particle_new.add_noise()
+        return particle_new
+
     def filtering(self):
         self.dc = DetectionClustering(self.detected.copy(), min_samples=10)
         if('door' in self.dc.clusters):
-
             self.pub_msg.data = list(np.ndarray.flatten(np.asarray(self.dc.clusters['door'])))
             self.pub.publish(self.pub_msg)
             self.rate.sleep()
-            
             readings_robot = self.zed_sensor_reading()
             
             if(len(readings_robot) == 0):
@@ -111,7 +105,6 @@ class Particle_Filter(object):
             for i in range(num_particles):
                 particle = self.distribution.random_select()
                 particles_new.append(Particle(x = particle.x, y = particle.y, maze = self.world, heading = particle.heading, sensor_limit = self.sensor_limit, noisy = True))
-            
             self.particles = particles_new
 
     def initialize_particles(self):
@@ -137,9 +130,17 @@ class Particle_Filter(object):
         return True
         
     def callback(self, data):
-        #self.tracker += 1
-        self.live_x = data.pose.pose.position.x
-        self.live_y = data.pose.pose.position.y
+        self.cur_pose[0] = data.pose.pose.position.x
+        self.cur_pose[1] = data.pose.pose.position.y
+        self.cur_pose[2] = self.quaternion_to_euler(data.pose.pose.orientation.x, \
+            data.pose.pose.orientation.y, data.pose.pose.orientation.z, \
+            data.pose.pose.orientation.w)
+        
+    def quaternion_to_euler(self, x, y, z, w):
+        t3 = +2.0 * (w * z + x * y)
+        t4 = +1.0 - 2.0 * (y * y + z * z)
+        Z = math.atan2(t3, t4)
+        return Z
 
     # Collecting objects --------------------------------------------------
     def update_key(self, key, val):
