@@ -35,6 +35,10 @@ class Particle_Filter(object):
 
         # Initilizing particles randomly 
         self.initialize_particles()
+
+        self.particles = list()
+        self.particles.append(Particle(x = 250, y = 20, maze = self.world, sensor_limit = self.sensor_limit))
+        
         self.distribution = WeightedDistribution(particles = self.particles)
         # Display the map with particles
         time.sleep(1)
@@ -50,28 +54,32 @@ class Particle_Filter(object):
         self.localize()
     
     def localize(self):
-        
-        
         readings_robot = []
-        
+        counter = 0
         while(1):
             # Particle filtering
             #self.filtering()
-            
-            for particle in self.particles:
-                permissible = particle.try_move(maze=self.world, cur_pose=self.cur_pose,\
-                    prev_pose=self.prev_pose)
-                if(permissible == 0):
-                    particle = self.selectParticle()
-                    while(not self.check_permissible_space(x=particle.x, y=particle.y)):
+            if(self.eucDist() > 0.5):
+                #print("First: ", self.eucDist)
+                for particle in self.particles:
+                    permissible = particle.try_move(maze=self.world, cur_pose=self.cur_pose,\
+                        prev_pose=self.prev_pose)
+                    if(permissible == 0):
                         particle = self.selectParticle()
+                        while(not self.check_permissible_space(x=particle.x, y=particle.y)):
+                            particle = self.selectParticle()
                     
-            self.prev_pose = list(self.cur_pose)
+                self.prev_pose = list(self.cur_pose)
             self.world.show_particles(particles = self.particles, show_frequency = self.particle_show_frequency)
             rospy.Subscriber('/visguide/zed_node/odom', Odometry, self.callback)
             rospy.Subscriber('/cluster_decomposer/centroid_pose_array', PoseArray, self.collect)
             self.world.clear_objects()
+            counter += 1
 
+    def eucDist(self):
+         deltaTrans = math.sqrt((self.cur_pose[0] - self.prev_pose[0]) ** 2 + (self.cur_pose[1] - self.prev_pose[1]) ** 2)
+         return deltaTrans
+    
     def selectParticle(self):
         particle_new = self.distribution.random_select()
         particle_new.add_noise()

@@ -217,6 +217,7 @@ class Particle(object):
         self.weight = weight
         self.maze = maze
         self.sensor_limit = sensor_limit
+
         if noisy:
             self.add_noise()
 
@@ -248,13 +249,13 @@ class Particle(object):
         # self.y = y
         alpha = [0.05, 0.05, 0.1, 0.1]
         deltaRot1 = math.atan2(cur_pose[1] - prev_pose[1], cur_pose[0] - prev_pose[0]) - prev_pose[2]
+        #print(deltaRot1)
         #print(cur_pose, prev_pose)
         deltaTrans = 10 * math.sqrt((cur_pose[0] - prev_pose[0]) ** 2 + (cur_pose[1] - prev_pose[1]) ** 2)
+        print("Second:", cur_pose)
         deltaRot2 = cur_pose[2] - prev_pose[2] - deltaRot1
 
-
         trueRot1 = deltaRot1 - self.sample(mu=0, sigma=alpha[0] * math.fabs(deltaRot1) + alpha[1] * math.fabs(deltaTrans))
-
 
         trueTrans = deltaTrans - self.sample(mu=0, sigma=alpha[2] * math.fabs(deltaTrans) + alpha[3] * (
         math.fabs(deltaRot1) + math.fabs(deltaRot2)))
