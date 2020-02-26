@@ -38,7 +38,7 @@ class Particle_Filter(object):
 
         self.particles = list()
         for i in range(10):
-            self.particles.append(Particle(x = 250, y = 20, maze = self.world, sensor_limit = self.sensor_limit))
+            self.particles.append(Particle(x = 250, y = 2, maze = self.world, sensor_limit = self.sensor_limit))
         
         self.distribution = WeightedDistribution(particles = self.particles)
         # Display the map with particles
@@ -60,14 +60,15 @@ class Particle_Filter(object):
         while(1):
             # Particle filtering
             #self.filtering()
-            if(self.eucDist() > 0.5):
+            if(self.eucDist() > 1):
                 #print("First: ", self.eucDist)
+                total_weight = 0
                 for particle in self.particles:
                     permissible = particle.try_move(maze=self.world, cur_pose=self.cur_pose,\
                         prev_pose=self.prev_pose)
                     if(permissible == 0):
                         particle.weight = 0
-                        print("P1: ", particle.x, particle.y)
+                        #print("P1: ", particle.x, particle.y)
                         particle_new = self.selectParticle()
                         particle.x = particle_new.x
                         particle.y = particle_new.y
@@ -77,9 +78,16 @@ class Particle_Filter(object):
                             particle_new = self.selectParticle()
                             particle.x = particle_new.x
                             particle.y = particle_new.y
-                            particle.heading = particle_new.heading
+                            #particle.heading = particle_new.heading
                             particle.weight = particle_new.weight
-                        print("P2: ", particle.x, particle.y)
+                        #print("P2: ", particle.x, particle.y)
+                    else:
+                        particle.weight *= 2
+                    total_weight += particle.weight
+                if(total_weight == 0):
+                    total_weight = 1e-8    
+                for particle in self.particles:
+                    particle.weight /= total_weight
                     
                 self.prev_pose = list(self.cur_pose)
             self.world.show_particles(particles = self.particles, show_frequency = self.particle_show_frequency)
@@ -95,6 +103,9 @@ class Particle_Filter(object):
     def selectParticle(self):
         distribution = WeightedDistribution(particles = self.particles)
         particle_new = distribution.random_select()
+        while(particle_new == None):
+            particle_new = distribution.random_select()
+            print('fkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         particle_new.add_noise()
         return particle_new
 

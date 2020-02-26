@@ -255,17 +255,16 @@ class Particle(object):
         #print(cur_pose, prev_pose)
         deltaTrans = 10 * math.sqrt((cur_pose[0] - prev_pose[0]) ** 2 + (cur_pose[1] - prev_pose[1]) ** 2)
         #print("Second:", cur_pose)
-        deltaRot2 = cur_pose[2] - prev_pose[2] - deltaRot1
+        deltaRot2 = cur_pose[2] - prev_pose[2]
+        # trueRot1 = deltaRot1 - self.sample(mu=0, sigma=alpha[0] * math.fabs(deltaRot1) + alpha[1] * math.fabs(deltaTrans))
+        # #print("True: ", deltaRot1, trueRot1)
+        # trueTrans = deltaTrans - self.sample(mu=0, sigma=alpha[2] * math.fabs(deltaTrans) + alpha[3] * (
+        # math.fabs(deltaRot1) + math.fabs(deltaRot2)))
 
-        trueRot1 = deltaRot1 - self.sample(mu=0, sigma=alpha[0] * math.fabs(deltaRot1) + alpha[1] * math.fabs(deltaTrans))
-        #print("True: ", deltaRot1, trueRot1)
-        trueTrans = deltaTrans - self.sample(mu=0, sigma=alpha[2] * math.fabs(deltaTrans) + alpha[3] * (
-        math.fabs(deltaRot1) + math.fabs(deltaRot2)))
-
-        trueRot2 = deltaRot2 - self.sample(mu=0, sigma=alpha[0] * math.fabs(deltaRot2) + alpha[1] * math.fabs(deltaTrans))
-        #print("Change: ", deltaTrans, math.degrees(deltaRot1), math.degrees(deltaRot2))
+        # trueRot2 = deltaRot2 - self.sample(mu=0, sigma=alpha[0] * math.fabs(deltaRot2) + alpha[1] * math.fabs(deltaTrans))
+        print("Change: ", deltaTrans, math.degrees(deltaRot1), math.degrees(deltaRot2))
         curRot = deltaRot1 + math.radians(self.heading)
-        #print("curRot: ", curRot)
+        print("curRot: ", curRot)
         # if(self.heading > 180):
         #     curRot += math.radians(-(360 - self.heading))
         # else:
@@ -274,16 +273,16 @@ class Particle(object):
         #     curRot = -math.copysign((math.fabs(curRot) - 2 * np.pi), curRot)
         x = self.x + deltaTrans * math.sin(curRot)
         y = self.y + deltaTrans * math.cos(curRot)
-        theta = self.heading + math.degrees(deltaRot1 + deltaRot2)
+        theta = self.heading - math.degrees(deltaRot2)
 
         if((x >= 29 and x <= 241 and y >= 29 and y <= 301) or (x <= 1 or y <= 1 or x >= 268 or y >= 328)):
             return 0
         self.x = x
         self.y = y
         self.heading = theta
-        #print("H1: ", self.heading)
+        print("H1: ", self.heading)
         self.add_noise()
-        #print("H2: ", self.heading)
+        print("H2: ", self.heading)
         print("-------------------")
         return 1
 
@@ -295,17 +294,18 @@ class WeightedDistribution(object):
 
     def __init__(self, particles):
         
-        accum = 0.0
+        self.accum = 0.0
         self.particles = particles
         self.distribution = list()
         for particle in self.particles:
-            accum += particle.weight
-            self.distribution.append(accum)
+            self.accum += particle.weight
+            self.distribution.append(self.accum)
+        
 
     def random_select(self):
 
         try:
-            return self.particles[bisect.bisect_left(self.distribution, np.random.uniform(0, 1))]
+            return self.particles[bisect.bisect_left(self.distribution, np.random.uniform(0, self.accum))]
         except IndexError:
             # When all particles have weights zero
             return None
