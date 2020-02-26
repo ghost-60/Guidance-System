@@ -13,14 +13,20 @@ import math
 
 class Maze(object):
 
-    def __init__(self, grid_height, grid_width, maze = None, num_rows = None, num_cols = None, wall_prob = None, random_seed = None):
+    def __init__(self, grid_height, grid_width, lane, maze = None, num_rows = None, num_cols = None, wall_prob = None, random_seed = None):
         self.grid_height = grid_height
         self.grid_width = grid_width
-        self.walls = [[3, 3, 3, 24], [3, 3, 30, 3], [30, 3, 30, 24], [3, 24, 30, 24]] 
-        self.walls.append([6, 3, 6, 5])
-        self.walls.append([3, 5, 6, 5])
-        self.permissible_space = [[3, 3, 30, 24]]
-        self.random_maze(num_rows = num_rows, num_cols = num_cols, wall_prob = wall_prob, random_seed = random_seed)
+        self.num_rows = num_rows
+        self.num_cols = num_cols
+        self.lane = lane
+        self.walls = [[self.lane, self.lane, self.lane, self.num_cols - self.lane],\
+             [self.lane, self.lane, self.num_rows - self.lane, self.lane],\
+                  [self.num_rows - self.lane, self.lane, self.num_rows - self.lane, self.num_cols - self.lane],\
+                       [self.lane, self.num_cols - self.lane, self.num_rows - self.lane, self.num_cols - self.lane]] 
+        #self.walls.append([6, 3, 6, 5])
+        #self.walls.append([3, 5, 6, 5])
+        self.permissible_space = [[self.lane, self.lane, self.num_rows - self.lane, self.num_cols - self.lane]]
+        self.random_maze()
 
         self.height = self.num_rows * self.grid_height
         self.width = self.num_cols * self.grid_width
@@ -34,26 +40,24 @@ class Maze(object):
     def turtle_registration(self):
         turtle.register_shape('tri', ((-3, -2), (0, 3), (3, -2), (0, 0)))
 
-    def random_maze(self, num_rows, num_cols, wall_prob, random_seed = None):
+    def random_maze(self):
 
-        self.num_rows = 33
-        self.num_cols = 27
         self.maze = np.zeros((self.num_rows, self.num_cols), dtype = np.int8)
         
         # Outer boundary ------------------------------------------
 
         # left
-        for i in range(33):
+        for i in range(self.num_rows):
             self.maze[i, 0] |= 8
         # up
-        for i in range(27):
+        for i in range(self.num_cols):
             self.maze[0, i] |= 1
         # right
-        for i in range(33):
-            self.maze[i, 26] |= 2
+        for i in range(self.num_rows):
+            self.maze[i, self.num_cols - 1] |= 2
         # down
-        for i in range(27):
-            self.maze[32, i] |= 4
+        for i in range(self.num_cols):
+            self.maze[self.num_rows - 1, i] |= 4
 
         for x in self.walls:
             if(x[0] == x[2]):
@@ -98,10 +102,10 @@ class Maze(object):
                 else:
                     wally.up()
                 wally.pencolor('black')
-                if(i == 3 and (j == 21 or j == 20)):
-                    wally.pencolor('yellow')
-                if(i == 0 and (j == 6 or j == 7)):
-                    wally.pencolor('yellow')
+                # if(i == 3 and (j == 21 or j == 20)):
+                #     wally.pencolor('yellow')
+                # if(i == 0 and (j == 6 or j == 7)):
+                #     wally.pencolor('yellow')
                 wally.forward(self.grid_width)
                 
                 wally.setheading(90)
@@ -111,8 +115,8 @@ class Maze(object):
                 else:
                     wally.up()
                 wally.pencolor('black')
-                if((i == 11 or i == 12)  and j == 26):
-                    wally.pencolor('yellow')
+                # if((i == 11 or i == 12)  and j == 26):
+                #     wally.pencolor('yellow')
 
                 wally.forward(self.grid_height)
                 
@@ -123,11 +127,11 @@ class Maze(object):
                 else:
                     wally.up()
                 wally.pencolor('black')
-                if(i == 32 and (j == 25 or j == 26)):
-                    wally.pencolor('yellow')
+                # if(i == 32 and (j == 25 or j == 26)):
+                #     wally.pencolor('yellow')
 
-                if(i == 2 and (j == 21 or j == 20)):
-                    wally.pencolor('yellow')
+                # if(i == 2 and (j == 21 or j == 20)):
+                #     wally.pencolor('yellow')
 
                 wally.forward(self.grid_width)
                 
@@ -139,8 +143,8 @@ class Maze(object):
                     wally.up()
                     
                 wally.pencolor('black')
-                if((i == 25 or i == 26) and j == 0):
-                    wally.pencolor('yellow')
+                # if((i == 25 or i == 26) and j == 0):
+                #     wally.pencolor('yellow')
 
                 wally.forward(self.grid_height)
                 
@@ -213,9 +217,12 @@ class Particle(object):
             heading = np.random.uniform(0,360)
         self.x = x
         self.y = y
-        self.heading = 0
+        self.heading = 180
         self.weight = weight
         self.maze = maze
+        self.num_rows = maze.num_rows
+        self.num_cols = maze.num_cols
+        self.lane = maze.lane
         self.sensor_limit = sensor_limit
 
         if noisy:
@@ -227,10 +234,10 @@ class Particle(object):
         return (self.x, self.y, self.heading)
 
     def add_noise(self):
-        std = max(self.maze.grid_height, self.maze.grid_width) * 0.1
+        std = max(self.maze.grid_height, self.maze.grid_width) * 0.2
         self.x = self.x + np.random.normal(0, std)
         self.y = self.y + np.random.normal(0, std)
-        self.heading = int(self.heading + np.random.normal(0, 360 * 0.005)) % 360 
+        self.heading = int(self.heading + np.random.normal(0, 360 * 0.01)) % 360 
 
     def read_sensor(self, maze):
         readings = []
@@ -275,7 +282,9 @@ class Particle(object):
         y = self.y + deltaTrans * math.cos(curRot)
         theta = self.heading - math.degrees(deltaRot2)
 
-        if((x >= 29 and x <= 241 and y >= 29 and y <= 301) or (x <= 1 or y <= 1 or x >= 268 or y >= 328)):
+        if((x >= self.lane*10-1 and x <= (self.num_cols-self.lane)*10+1 and\
+             y >= self.lane*10-1 and y <= (self.num_rows-self.lane)*10+1)\
+             or (x <= 1 or y <= 1 or x >= self.num_cols*10-2 or y >= self.num_rows*10-2)):
             return 0
         self.x = x
         self.y = y

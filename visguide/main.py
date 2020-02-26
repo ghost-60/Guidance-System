@@ -15,11 +15,11 @@ from geometry_msgs.msg import PoseArray, Pose
 from std_msgs.msg import Float32MultiArray, MultiArrayDimension
 
 class Particle_Filter(object):
-    def __init__(self, window_width, window_height, num_particles, sensor_limit_ratio, grid_height, grid_width, num_rows, num_cols, wall_prob, random_seed, robot_speed, kernel_sigma, particle_show_frequency):
+    def __init__(self, window_width, window_height, num_particles, sensor_limit_ratio, grid_height, grid_width, lane, num_rows, num_cols, wall_prob, random_seed, robot_speed, kernel_sigma, particle_show_frequency):
         self.sensor_limit = sensor_limit_ratio * max(grid_height * num_rows, grid_width * num_cols)
         self.window = turtle.Screen()
         self.window.setup(width = window_width, height = window_height)
-        self.world = Maze(grid_height = grid_height, grid_width = grid_width, num_rows = num_rows, num_cols = num_cols, wall_prob = wall_prob, random_seed = random_seed)
+        self.world = Maze(grid_height = grid_height, grid_width = grid_width, lane = lane, num_rows = num_rows, num_cols = num_cols, wall_prob = wall_prob, random_seed = random_seed)
         self.particle_show_frequency = particle_show_frequency
         self.num_particles = num_particles
         self.prev_pose = [0, 0, 0]
@@ -29,7 +29,8 @@ class Particle_Filter(object):
         self.dc = None
         self.particles = list()
         self.map = None
-        self.permissible_space = [[3, 3, 30, 24]]
+        self.lane = lane
+        self.permissible_space = [[lane, lane, num_rows - lane, num_cols - lane]]
         self.num_rows = num_rows
         self.num_cols = num_cols
 
@@ -38,7 +39,7 @@ class Particle_Filter(object):
 
         self.particles = list()
         for i in range(10):
-            self.particles.append(Particle(x = 250, y = 2, maze = self.world, sensor_limit = self.sensor_limit))
+            self.particles.append(Particle(x = 2, y = 340, maze = self.world, sensor_limit = self.sensor_limit))
         
         self.distribution = WeightedDistribution(particles = self.particles)
         # Display the map with particles
@@ -206,12 +207,12 @@ if __name__ == '__main__':
     sensor_limit_ratio = 0.3
     grid_height = 10
     grid_width = 10
-    num_rows = 33
-    num_cols = 27
+    num_rows = 36
+    num_cols = 25
     wall_prob = 0.25
     random_seed = 100
     robot_speed = 10
     kernel_sigma = 500
     particle_show_frequency = 1
-
-    Particle_Filter(window_width = window_width, window_height = window_height, num_particles = num_particles, sensor_limit_ratio = sensor_limit_ratio, grid_height = grid_height, grid_width = grid_width, num_rows = num_rows, num_cols = num_cols, wall_prob = wall_prob, random_seed = random_seed, robot_speed = robot_speed, kernel_sigma = kernel_sigma, particle_show_frequency = particle_show_frequency)
+    lane = 4
+    Particle_Filter(window_width = window_width, window_height = window_height, num_particles = num_particles, sensor_limit_ratio = sensor_limit_ratio, grid_height = grid_height, grid_width = grid_width, lane = lane, num_rows = num_rows, num_cols = num_cols, wall_prob = wall_prob, random_seed = random_seed, robot_speed = robot_speed, kernel_sigma = kernel_sigma, particle_show_frequency = particle_show_frequency)
