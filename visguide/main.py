@@ -37,7 +37,8 @@ class Particle_Filter(object):
         self.initialize_particles()
 
         self.particles = list()
-        self.particles.append(Particle(x = 250, y = 20, maze = self.world, sensor_limit = self.sensor_limit))
+        for i in range(10):
+            self.particles.append(Particle(x = 250, y = 20, maze = self.world, sensor_limit = self.sensor_limit))
         
         self.distribution = WeightedDistribution(particles = self.particles)
         # Display the map with particles
@@ -65,9 +66,20 @@ class Particle_Filter(object):
                     permissible = particle.try_move(maze=self.world, cur_pose=self.cur_pose,\
                         prev_pose=self.prev_pose)
                     if(permissible == 0):
-                        particle = self.selectParticle()
+                        particle.weight = 0
+                        print("P1: ", particle.x, particle.y)
+                        particle_new = self.selectParticle()
+                        particle.x = particle_new.x
+                        particle.y = particle_new.y
+                        particle.heading = particle_new.heading
+                        particle.weight = particle_new.weight
                         while(not self.check_permissible_space(x=particle.x, y=particle.y)):
-                            particle = self.selectParticle()
+                            particle_new = self.selectParticle()
+                            particle.x = particle_new.x
+                            particle.y = particle_new.y
+                            particle.heading = particle_new.heading
+                            particle.weight = particle_new.weight
+                        print("P2: ", particle.x, particle.y)
                     
                 self.prev_pose = list(self.cur_pose)
             self.world.show_particles(particles = self.particles, show_frequency = self.particle_show_frequency)
@@ -81,7 +93,8 @@ class Particle_Filter(object):
          return deltaTrans
     
     def selectParticle(self):
-        particle_new = self.distribution.random_select()
+        distribution = WeightedDistribution(particles = self.particles)
+        particle_new = distribution.random_select()
         particle_new.add_noise()
         return particle_new
 

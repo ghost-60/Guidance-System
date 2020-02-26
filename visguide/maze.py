@@ -263,9 +263,9 @@ class Particle(object):
         math.fabs(deltaRot1) + math.fabs(deltaRot2)))
 
         trueRot2 = deltaRot2 - self.sample(mu=0, sigma=alpha[0] * math.fabs(deltaRot2) + alpha[1] * math.fabs(deltaTrans))
-        print("Change: ", deltaTrans, math.degrees(deltaRot1), math.degrees(deltaRot2))
+        #print("Change: ", deltaTrans, math.degrees(deltaRot1), math.degrees(deltaRot2))
         curRot = deltaRot1 + math.radians(self.heading)
-        print("curRot: ", curRot)
+        #print("curRot: ", curRot)
         # if(self.heading > 180):
         #     curRot += math.radians(-(360 - self.heading))
         # else:
@@ -281,9 +281,9 @@ class Particle(object):
         self.x = x
         self.y = y
         self.heading = theta
-        print("H1: ", self.heading)
+        #print("H1: ", self.heading)
         self.add_noise()
-        print("H2: ", self.heading)
+        #print("H2: ", self.heading)
         print("-------------------")
         return 1
 
