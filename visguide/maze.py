@@ -227,10 +227,10 @@ class Particle(object):
         return (self.x, self.y, self.heading)
 
     def add_noise(self):
-        std = max(self.maze.grid_height, self.maze.grid_width) * 0.2
+        std = max(self.maze.grid_height, self.maze.grid_width) * 0.1
         self.x = self.x + np.random.normal(0, std)
         self.y = self.y + np.random.normal(0, std)
-        self.heading = self.heading + np.random.normal(0, 360 * 0.05) 
+        self.heading = int(self.heading + np.random.normal(0, 360 * 0.005)) % 360 
 
     def read_sensor(self, maze):
         readings = []
@@ -249,29 +249,44 @@ class Particle(object):
         # self.y = y
         alpha = [0.05, 0.05, 0.1, 0.1]
         deltaRot1 = math.atan2(cur_pose[1] - prev_pose[1], cur_pose[0] - prev_pose[0]) - prev_pose[2]
+        # if(math.fabs(deltaRot1) > np.pi):
+        #     deltaRot1 = -math.copysign((math.fabs(deltaRot1) - 2 * np.pi), deltaRot1)
         #print(deltaRot1)
         #print(cur_pose, prev_pose)
         deltaTrans = 10 * math.sqrt((cur_pose[0] - prev_pose[0]) ** 2 + (cur_pose[1] - prev_pose[1]) ** 2)
-        print("Second:", cur_pose)
+        #print("Second:", cur_pose)
         deltaRot2 = cur_pose[2] - prev_pose[2] - deltaRot1
 
         trueRot1 = deltaRot1 - self.sample(mu=0, sigma=alpha[0] * math.fabs(deltaRot1) + alpha[1] * math.fabs(deltaTrans))
-
+        #print("True: ", deltaRot1, trueRot1)
         trueTrans = deltaTrans - self.sample(mu=0, sigma=alpha[2] * math.fabs(deltaTrans) + alpha[3] * (
         math.fabs(deltaRot1) + math.fabs(deltaRot2)))
 
         trueRot2 = deltaRot2 - self.sample(mu=0, sigma=alpha[0] * math.fabs(deltaRot2) + alpha[1] * math.fabs(deltaTrans))
-
-        x = self.x + trueTrans * math.cos(math.radians(self.heading) + trueRot1)
-        y = self.y + trueTrans * math.sin(math.radians(self.heading) + trueRot1)
-        theta = self.heading + math.degrees(trueRot1 + trueRot2)
+        print("Change: ", deltaTrans, math.degrees(deltaRot1), math.degrees(deltaRot2))
+        curRot = deltaRot1 + math.radians(self.heading)
+        print("curRot: ", curRot)
+        # if(self.heading > 180):
+        #     curRot += math.radians(-(360 - self.heading))
+        # else:
+        #     curRot += math.radians(self.heading)
+        # if(math.fabs(curRot) > np.pi):
+        #     curRot = -math.copysign((math.fabs(curRot) - 2 * np.pi), curRot)
+        x = self.x + deltaTrans * math.sin(curRot)
+        y = self.y + deltaTrans * math.cos(curRot)
+        theta = self.heading + math.degrees(deltaRot1 + deltaRot2)
 
         if((x >= 29 and x <= 241 and y >= 29 and y <= 301) or (x <= 1 or y <= 1 or x >= 268 or y >= 328)):
             return 0
         self.x = x
         self.y = y
         self.heading = theta
+        print("H1: ", self.heading)
+        self.add_noise()
+        print("H2: ", self.heading)
+        print("-------------------")
         return 1
+
     def sample(self, mu, sigma):
         return np.random.normal(mu, sigma)
         
