@@ -37,9 +37,11 @@ class Particle_Filter(object):
         # Initilizing particles randomly 
         self.initialize_particles()
 
-        self.particles = list()
-        for i in range(10):
-            self.particles.append(Particle(x = 2, y = 340, maze = self.world, sensor_limit = self.sensor_limit))
+        # self.particles = list()
+        # for i in range(10):
+        #     self.particles.append(Particle(x = 2, y = 340, maze = self.world, heading = 180, sensor_limit = self.sensor_limit))
+        # for i in range(10):
+        #     self.particles.append(Particle(x = 240, y = 2, maze = self.world, heading = 0, sensor_limit = self.sensor_limit))
         
         self.distribution = WeightedDistribution(particles = self.particles)
         # Display the map with particles
@@ -58,9 +60,10 @@ class Particle_Filter(object):
     def localize(self):
         readings_robot = []
         counter = 0
+        #self.filtering()
         while(1):
             # Particle filtering
-            #self.filtering()
+           
             if(self.eucDist() > 1):
                 #print("First: ", self.eucDist)
                 total_weight = 0
@@ -75,20 +78,24 @@ class Particle_Filter(object):
                         particle.y = particle_new.y
                         particle.heading = particle_new.heading
                         particle.weight = particle_new.weight
+                        particle.lifetime = particle_new.lifetime
                         while(not self.check_permissible_space(x=particle.x, y=particle.y)):
                             particle_new = self.selectParticle()
                             particle.x = particle_new.x
                             particle.y = particle_new.y
-                            #particle.heading = particle_new.heading
+                            particle.heading = particle_new.heading
                             particle.weight = particle_new.weight
+                            particle.lifetime = particle_new.lifetime
                         #print("P2: ", particle.x, particle.y)
                     else:
-                        particle.weight *= 2
+                        particle.lifetime += 1
+                        particle.weight *= particle.lifetime
                     total_weight += particle.weight
                 if(total_weight == 0):
                     total_weight = 1e-8    
                 for particle in self.particles:
                     particle.weight /= total_weight
+                #self.filtering()
                     
                 self.prev_pose = list(self.cur_pose)
             self.world.show_particles(particles = self.particles, show_frequency = self.particle_show_frequency)
@@ -106,16 +113,15 @@ class Particle_Filter(object):
         particle_new = distribution.random_select()
         while(particle_new == None):
             particle_new = distribution.random_select()
-            print('fkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         particle_new.add_noise()
         return particle_new
 
     def filtering(self):
         self.dc = DetectionClustering(self.detected.copy(), min_samples=10)
         if('door' in self.dc.clusters):
-            self.pub_msg.data = list(np.ndarray.flatten(np.asarray(self.dc.clusters['door'])))
-            self.pub.publish(self.pub_msg)
-            self.rate.sleep()
+            # self.pub_msg.data = list(np.ndarray.flatten(np.asarray(self.dc.clusters['door'])))
+            # self.pub.publish(self.pub_msg)
+            # self.rate.sleep()
             readings_robot = self.zed_sensor_reading()
             
             if(len(readings_robot) == 0):
@@ -124,7 +130,7 @@ class Particle_Filter(object):
             particle_weight_total = 0
             for particle in self.particles:
                 readings_particle = particle.read_sensor(maze=self.world)
-                particle.weight = weight_gaussian_kernel(x1 = readings_robot, x2 = readings_particle)
+                particle.weight += weight_gaussian_kernel(x1 = readings_robot, x2 = readings_particle)
                 particle_weight_total += particle.weight
                 
             if particle_weight_total == 0:
@@ -193,7 +199,7 @@ class Particle_Filter(object):
     def zed_sensor_reading(self):
         readings_robot = []
         for p in self.dc.clusters['door']:
-            dist = math.sqrt(math.pow((p[0] - self.live_x), 2) + math.pow((p[1] - self.live_y), 2))
+            dist = math.sqrt(math.pow((p[0] - self.cur_pose[0]), 2) + math.pow((p[1] - self.cur_pose[1]), 2))
             if(dist < 10):
                 readings_robot.append(dist)
         return readings_robot

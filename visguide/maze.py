@@ -217,8 +217,9 @@ class Particle(object):
             heading = np.random.uniform(0,360)
         self.x = x
         self.y = y
-        self.heading = 180
+        self.heading = heading
         self.weight = weight
+        self.lifetime = 0
         self.maze = maze
         self.num_rows = maze.num_rows
         self.num_cols = maze.num_cols
@@ -269,9 +270,9 @@ class Particle(object):
         # math.fabs(deltaRot1) + math.fabs(deltaRot2)))
 
         # trueRot2 = deltaRot2 - self.sample(mu=0, sigma=alpha[0] * math.fabs(deltaRot2) + alpha[1] * math.fabs(deltaTrans))
-        print("Change: ", deltaTrans, math.degrees(deltaRot1), math.degrees(deltaRot2))
+        #print("Change: ", deltaTrans, math.degrees(deltaRot1), math.degrees(deltaRot2))
         curRot = deltaRot1 + math.radians(self.heading)
-        print("curRot: ", curRot)
+        #print("curRot: ", curRot)
         # if(self.heading > 180):
         #     curRot += math.radians(-(360 - self.heading))
         # else:
@@ -289,10 +290,10 @@ class Particle(object):
         self.x = x
         self.y = y
         self.heading = theta
-        print("H1: ", self.heading)
+        #print("H1: ", self.heading)
         self.add_noise()
-        print("H2: ", self.heading)
-        print("-------------------")
+        #print("H2: ", self.heading)
+        #print("-------------------")
         return 1
 
     def sample(self, mu, sigma):
@@ -321,8 +322,8 @@ class WeightedDistribution(object):
 
 def weight_gaussian_kernel(x1, x2):
     alpha = 0
-    dist = 0
-
+    if(len(x1) == 0 and len(x2) == 0):
+        return 1
     if(len(x2) == 0):
         return 0
     
