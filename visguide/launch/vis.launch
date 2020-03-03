@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- ZED MINI Node -->
+	<include file="$(find zed_wrapper)/launch/zed_no_tf.launch">
+    <arg name="camera_model"   default="zedm"/>
+    </include>
+
+	<!-- RTAB-map Node-->
+    <include file="$(find rtabmap_ros)/launch/rtabmap.launch">
+      <arg name="localization"                           value="false"/>
+      <arg name="rtabmap_args"                           value="--delete_db_on_start" />
+      <arg name="rgb_topic"               		         value="/zed/zed_node/rgb/image_rect_color" />
+      <arg name="depth_topic"             		         value="/zed/zed_node/depth/depth_registered" />
+      <arg name="camera_info_topic"       		         value="/zed/zed_node/rgb/camera_info" />
+      <arg name="frame_id"                               value="base_link" />
+      <arg name="approx_sync"                            value="false" />
+  </include>
+<!-- <include file="$(find visguide)/launch/landmark.launch" /> -->
+</launch>
