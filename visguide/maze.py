@@ -30,10 +30,11 @@ class Maze(object):
 
         self.height = self.num_rows * self.grid_height
         self.width = self.num_cols * self.grid_width
-        self.landmarks = [[60, 0], [70, 0], [140, 0], [250, 0], [260, 15], \
-                        [260, 30], [260, 140], [260, 170], [260, 320], [40, 320], [70, 320], \
-                        [70, 30], [120, 30], [140, 30], [230, 160], [230, 170], \
-                        [130, 290], [110, 290], [100, 290], [30, 150], [30, 140]]
+        self.landmarks = [[60, 0], [70, 0], [150, 0], [220, 0], [90, 40], [120, 40], [150, 40], \
+                        [238, 48], [238, 170], [238, 310], [200, 170], [200, 155], \
+                        [60, 328], [50, 328], [150, 290], [100, 290], [60, 290], \
+                        [40, 150], [40, 140]]
+        #self.landmarks = [[240, 140], [240, 180], [240, 320], [200, 160], [200, 170]]
         
         self.turtle_registration()
 
@@ -171,6 +172,19 @@ class Maze(object):
         
         turtle.update()
 
+    def show_doors(self, doors, show_frequency = 1):
+
+        turtle.shape('square')
+        turtle.resizemode("user")
+        turtle.shapesize(0.5, 0.5, 1)
+        for i, door in enumerate(doors):
+            if i % show_frequency == 0:
+                turtle.setposition((door[0], door[1]))
+                turtle.setheading(0)
+                turtle.color('green')
+                turtle.stamp()
+        turtle.update()
+
     def show_estimated_location(self, particles):
         '''
         Show average weighted mean location of the particles.
@@ -219,12 +233,13 @@ class Particle(object):
         self.y = y
         self.heading = heading
         self.weight = weight
-        self.lifetime = 0
+        self.lifetime = 1
         self.maze = maze
         self.num_rows = maze.num_rows
         self.num_cols = maze.num_cols
         self.lane = maze.lane
         self.sensor_limit = sensor_limit
+        self.active = True
 
         if noisy:
             self.add_noise()
@@ -235,18 +250,20 @@ class Particle(object):
         return (self.x, self.y, self.heading)
 
     def add_noise(self):
-        std = max(self.maze.grid_height, self.maze.grid_width) * 0.2
+        std = max(self.maze.grid_height, self.maze.grid_width) * 0.1
         self.x = self.x + np.random.normal(0, std)
         self.y = self.y + np.random.normal(0, std)
-        self.heading = int(self.heading + np.random.normal(0, 360 * 0.01)) % 360 
+        self.heading = int(self.heading + np.random.normal(0, 360 * 0.05)) % 360 
 
     def read_sensor(self, maze):
         readings = []
         for i in range(len(self.maze.landmarks)):
-            d = math.sqrt(math.pow((self.x - self.maze.landmarks[i][0]), 2) + math.pow((self.y - self.maze.landmarks[i][1]), 2))
+            d = math.sqrt((self.x - self.maze.landmarks[i][0])**2 + (self.y - self.maze.landmarks[i][1])**2)
+            delRot = math.atan2(self.y - self.maze.landmarks[i][1], self.x - self.maze.landmarks[i][0]) - math.radians(self.heading)
+            #delRot = (delRot + (int(delRot / 360) + 1) * 360) % 360
             d = d / 10.0            
             if(d < 10):
-                readings.append(d)
+                readings.append([d, delRot])
         return readings
     
     def try_move(self, maze, cur_pose, prev_pose, noisy = False):
@@ -320,18 +337,22 @@ class WeightedDistribution(object):
             # When all particles have weights zero
             return None
 
-def weight_gaussian_kernel(x1, x2):
+def weight_gaussian_kernel(x1, x2, particle):
     alpha = 0
-    if(len(x1) == 0 and len(x2) == 0):
-        return 1
     if(len(x2) == 0):
+        particle.active = False
         return 0
     
     x2 = np.asarray(x2)
     wt = 0
     wt2 = 0
     for i in range(len(x1)):
-        wt += 1.0 / np.min(np.abs(np.subtract(x2, x1[i])))
-        wt2 += np.min(np.abs(np.subtract(x2, x1[i])))
-    wt2 = ((1 - alpha) / wt2) + (alpha * wt)
+        x = (np.subtract(x2, x1[i]))
+        for j in range(x.shape[0]):
+            if(math.fabs(x[j][1]) > np.pi):
+                x[j][1] = 2 * np.pi - math.fabs(x[j][1])
+        x = np.min(np.sum(np.square(x), axis = 1))        
+        #wt += 1.0 / x
+        wt2 += -x
+    #wt2 = ((1 - alpha) / wt2) + (alpha * wt)
     return wt2

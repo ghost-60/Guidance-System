@@ -33,6 +33,11 @@ class Particle_Filter(object):
         self.permissible_space = [[lane, lane, num_rows - lane, num_cols - lane]]
         self.num_rows = num_rows
         self.num_cols = num_cols
+        self.doors = [[60, 0], [70, 0], [150, 0], [220, 0], [90, 40], [120, 40], [150, 40], \
+                        [238, 48], [238, 170], [238, 310], [200, 170], [200, 155], \
+                        [60, 328], [50, 328], [150, 290], [100, 290], [60, 290], \
+                        [40, 150], [40, 140]]
+
 
         # Initilizing particles randomly 
         self.initialize_particles()
@@ -66,6 +71,7 @@ class Particle_Filter(object):
            
             if(self.eucDist() > 1):
                 #print("First: ", self.eucDist)
+                print(self.cur_pose)
                 total_weight = 0
                 for particle in self.particles:
                     permissible = particle.try_move(maze=self.world, cur_pose=self.cur_pose,\
@@ -89,17 +95,18 @@ class Particle_Filter(object):
                         #print("P2: ", particle.x, particle.y)
                     else:
                         particle.lifetime += 1
-                        particle.weight *= particle.lifetime
+                        particle.weight *= 2
                     total_weight += particle.weight
                 if(total_weight == 0):
                     total_weight = 1e-8    
                 for particle in self.particles:
                     particle.weight /= total_weight
-                #self.filtering()
+                self.filtering()
                     
                 self.prev_pose = list(self.cur_pose)
             self.world.show_particles(particles = self.particles, show_frequency = self.particle_show_frequency)
-            rospy.Subscriber('/visguide/zed_node/odom', Odometry, self.callback)
+            self.world.show_doors(doors=self.doors, show_frequency=self.particle_show_frequency)
+            rospy.Subscriber('/rtabmap/odom', Odometry, self.callback)
             rospy.Subscriber('/cluster_decomposer/centroid_pose_array', PoseArray, self.collect)
             self.world.clear_objects()
             counter += 1
@@ -118,21 +125,32 @@ class Particle_Filter(object):
 
     def filtering(self):
         self.dc = DetectionClustering(self.detected.copy(), min_samples=10)
+        print(self.dc['door'])
+        print("FK is it stuck here or somethi")
         if('door' in self.dc.clusters):
             # self.pub_msg.data = list(np.ndarray.flatten(np.asarray(self.dc.clusters['door'])))
             # self.pub.publish(self.pub_msg)
             # self.rate.sleep()
             readings_robot = self.zed_sensor_reading()
-            
+            #print("WTF AAAAAAA....I am sane, yes, totally")
             if(len(readings_robot) == 0):
                 return 0
-            
+
+            #print("I am sane, yes, totally")
             particle_weight_total = 0
+            min_wt = 0
             for particle in self.particles:
                 readings_particle = particle.read_sensor(maze=self.world)
-                particle.weight += weight_gaussian_kernel(x1 = readings_robot, x2 = readings_particle)
-                particle_weight_total += particle.weight
-                
+                particle.weight = weight_gaussian_kernel(x1 = readings_robot, x2 = readings_particle, particle = particle)
+                min_wt = min(min_wt, particle.weight)
+                #particle_weight_total += particle.weight
+
+            for particle in self.particles:
+                if(particle.active):
+                    particle.weight += min_wt
+                    particle.weight *= particle.lifetime
+                particle_weight_total +=  particle.weight  
+            
             if particle_weight_total == 0:
                 particle_weight_total = 1e-8
 
@@ -141,9 +159,14 @@ class Particle_Filter(object):
             
             self.distribution = WeightedDistribution(particles = self.particles)
             particles_new = list()
-            for i in range(num_particles):
-                particle = self.distribution.random_select()
-                particles_new.append(Particle(x = particle.x, y = particle.y, maze = self.world, heading = particle.heading, sensor_limit = self.sensor_limit, noisy = True))
+            for i in range(self.num_particles):
+                particle_new = self.distribution.random_select()
+                particle_new.add_noise()
+                while(not self.check_permissible_space(x=particle_new.x, y=particle_new.y)):
+                    particle_new = self.distribution.random_select()
+                    particle_new.add_noise()
+                particle_new.active = True
+                particles_new.append(particle_new)
             self.particles = particles_new
 
     def initialize_particles(self):
@@ -199,9 +222,11 @@ class Particle_Filter(object):
     def zed_sensor_reading(self):
         readings_robot = []
         for p in self.dc.clusters['door']:
-            dist = math.sqrt(math.pow((p[0] - self.cur_pose[0]), 2) + math.pow((p[1] - self.cur_pose[1]), 2))
+            dist = math.sqrt((p[0] - self.cur_pose[0])**2 + (p[1] - self.cur_pose[1])**2)
+            delRot = math.atan2(p[1] - self.cur_pose[1], p[0] - self.cur_pose[0]) - self.cur_pose[2]
+            #delRot = (delRot + (int(delRot / (2*np.pi)) + 1) * 2*np.pi) % 360
             if(dist < 10):
-                readings_robot.append(dist)
+                readings_robot.append([dist, delRot])
         return readings_robot
     # ------------------------------------------------------------------------
 
@@ -213,8 +238,8 @@ if __name__ == '__main__':
     sensor_limit_ratio = 0.3
     grid_height = 10
     grid_width = 10
-    num_rows = 36
-    num_cols = 25
+    num_rows = 33
+    num_cols = 24
     wall_prob = 0.25
     random_seed = 100
     robot_speed = 10
