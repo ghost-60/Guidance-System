@@ -1,23 +1,29 @@
 <launch>
   <arg name="use_zed"               default="true"   doc="Set to false when using Intel Realsense D435"/>  
   <arg name="generate_point_cloud"  default="false"  doc="Generate point cloud from input_image and input_depth"/>
-  
+  <arg name="darknet_config"        default="$(find turtlebot3_slam_3d)/config/darknet_config.yaml"/>
   <!-- TOPICS -->
-  <arg     if="$(arg use_zed)" name="input_image"        default="/visguide/zed_node/left/image_rect_color"/>
-  <arg     if="$(arg use_zed)" name="input_depth"        default="/visguide/zed_node/depth/depth_registered"/>
-  <arg     if="$(arg use_zed)" name="input_camera_info"  default="/visguide/zed_node/left/camera_info"/>
-  <arg     if="$(arg use_zed)" name="point_cloud_topic"  default="/visguide/zed_node/point_cloud/cloud_registered"/>
+  <arg     if="$(arg use_zed)" name="input_image"        default="/zed/zed_node/left/image_rect_color"/>
+  <arg     if="$(arg use_zed)" name="input_depth"        default="/zed/zed_node/depth/depth_registered"/>
+  <arg     if="$(arg use_zed)" name="input_camera_info"  default="/zed/zed_node/left/camera_info"/>
+  <arg     if="$(arg use_zed)" name="point_cloud_topic"  default="/zed/zed_node/point_cloud/cloud_registered"/>
 
   <!-- NODELET -->
   <arg name="MANAGER" value="detection_manager" />
   <node pkg="nodelet" type="nodelet" args="manager"
 	name="$(arg MANAGER)" output="screen"/>
 
+   <!-- DETECTION -->
+  <param name="/darknet_ros/subscribers/camera_reading/topic"      value="$(arg input_image)"/>
+  <param name="/darknet_ros/subscribers/camera_reading/queue_size" value="1"/>
+  <include file="$(find darknet_ros)/launch/darknet_ros.launch">
+    <arg name="ros_config" value="$(arg darknet_config)"/>
+  </include>
 
   <!-- COORDINATES -->
   <node pkg="nodelet" type="nodelet" name="label_mask"
   	args="load jsk_pcl_utils/LabelToClusterPointIndices $(arg MANAGER)">
-    <remap from="~input" to="/visguide/zed_node/label/image_rect_color"/>
+    <remap from="~input" to="darknet_ros/label_image"/>
     <remap from="~output" to="/visguide/cluster_points"/>
   </node>
 
