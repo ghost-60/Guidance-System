@@ -42,11 +42,11 @@ class Particle_Filter(object):
         # Initilizing particles randomly 
         self.initialize_particles()
 
-        # self.particles = list()
+        self.particles = list()
         # for i in range(10):
         #     self.particles.append(Particle(x = 2, y = 340, maze = self.world, heading = 180, sensor_limit = self.sensor_limit))
-        # for i in range(10):
-        #     self.particles.append(Particle(x = 240, y = 2, maze = self.world, heading = 0, sensor_limit = self.sensor_limit))
+        for i in range(10):
+            self.particles.append(Particle(x = 220, y = 40, maze = self.world, heading = 0, sensor_limit = self.sensor_limit))
         
         self.distribution = WeightedDistribution(particles = self.particles)
         # Display the map with particles
@@ -125,8 +125,6 @@ class Particle_Filter(object):
 
     def filtering(self):
         self.dc = DetectionClustering(self.detected.copy(), min_samples=10)
-        print(self.dc['door'])
-        print("FK is it stuck here or somethi")
         if('door' in self.dc.clusters):
             # self.pub_msg.data = list(np.ndarray.flatten(np.asarray(self.dc.clusters['door'])))
             # self.pub.publish(self.pub_msg)
@@ -161,9 +159,13 @@ class Particle_Filter(object):
             particles_new = list()
             for i in range(self.num_particles):
                 particle_new = self.distribution.random_select()
+                while(particle_new == None):
+                    particle_new = self.distribution.random_select()
                 particle_new.add_noise()
                 while(not self.check_permissible_space(x=particle_new.x, y=particle_new.y)):
                     particle_new = self.distribution.random_select()
+                    while(particle_new == None):
+                        particle_new = self.distribution.random_select()
                     particle_new.add_noise()
                 particle_new.active = True
                 particles_new.append(particle_new)
@@ -234,7 +236,7 @@ if __name__ == '__main__':
 
     window_width = 500
     window_height = 500
-    num_particles = 2000
+    num_particles = 10
     sensor_limit_ratio = 0.3
     grid_height = 10
     grid_width = 10
