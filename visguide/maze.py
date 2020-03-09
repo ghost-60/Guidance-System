@@ -247,7 +247,6 @@ class Particle(object):
 
     @property
     def state(self):
-
         return (self.x, self.y, self.heading)
 
     def add_noise(self):
@@ -257,7 +256,7 @@ class Particle(object):
         self.heading = int(self.heading + np.random.normal(0, 360 * 0.05)) % 360
 
     def add_filter_noise(self):
-        std = max(self.maze.grid_height, self.maze.grid_width) * 0.5
+        std = max(self.maze.grid_height, self.maze.grid_width) * 0.1
         self.x = self.x + np.random.normal(0, std)
         self.y = self.y + np.random.normal(0, std)
         self.heading = int(self.heading + np.random.normal(0, 360 * 0.05)) % 360 
@@ -361,5 +360,6 @@ def weight_gaussian_kernel(x1, x2, particle):
         x = np.min(np.sum(np.fabs(x), axis = 1))        
         #wt += 1.0 / x
         wt2 += -x
+    wt2 /= len(x1)
     #wt2 = ((1 - alpha) / wt2) + (alpha * wt)
     return wt2
