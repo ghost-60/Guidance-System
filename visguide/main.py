@@ -157,11 +157,15 @@ class Particle_Filter(object):
                 #particle_weight_total += particle.weight
 
             print('Particle weights measured-----------------')
+            min_lt = min(0, min_lt-1)
+            print("Min lifetime: ", min_lt)
             for particle in self.particles:
                 if(particle.active):
                     particle.weight -= min_wt
-                    particle.lifetime -= (min_lt - 1)
-                    #particle.weight *= particle.lifetime
+                    particle.lifetime -= min_lt
+                    particle.weight *= particle.lifetime
+                else:
+                    particle.lifetime = 0
                 particle_weight_total +=  particle.weight
                 
             print('Particle weights calculated------------------', particle_weight_total)  
@@ -205,6 +209,8 @@ class Particle_Filter(object):
                 #     particle_new.add_filter_noise()  
             self.particles = particles_new_list
             print("New Particles ready except: ", countNone, particle_new_total)
+            if(particle_new_total < 1):
+                return 0
             for particle in self.particles:
                 particle.weight /= particle_new_total
 
