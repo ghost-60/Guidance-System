@@ -162,12 +162,13 @@ class Maze(object):
     def show_particles(self, particles, show_frequency = 1):
 
         turtle.shape('tri')
-
+        turtle.resizemode("user")
+        turtle.shapesize(1, 1, 1)
         for i, particle in enumerate(particles):
             if i % show_frequency == 0:
                 turtle.setposition((particle.x, particle.y))
                 turtle.setheading(90 - particle.heading)
-                turtle.color(self.weight_to_color(particle.weight))
+                turtle.color('blue')
                 turtle.stamp()
         
         turtle.update()
@@ -250,7 +251,13 @@ class Particle(object):
         return (self.x, self.y, self.heading)
 
     def add_noise(self):
-        std = max(self.maze.grid_height, self.maze.grid_width) * 0.1
+        std = max(self.maze.grid_height, self.maze.grid_width) * 0.5
+        self.x = self.x + np.random.normal(0, std)
+        self.y = self.y + np.random.normal(0, std)
+        self.heading = int(self.heading + np.random.normal(0, 360 * 0.05)) % 360
+
+    def add_filter_noise(self):
+        std = max(self.maze.grid_height, self.maze.grid_width) * 0.5
         self.x = self.x + np.random.normal(0, std)
         self.y = self.y + np.random.normal(0, std)
         self.heading = int(self.heading + np.random.normal(0, 360 * 0.05)) % 360 
@@ -351,7 +358,7 @@ def weight_gaussian_kernel(x1, x2, particle):
         for j in range(x.shape[0]):
             if(math.fabs(x[j][1]) > np.pi):
                 x[j][1] = 2 * np.pi - math.fabs(x[j][1])
-        x = np.min(np.sum(np.square(x), axis = 1))        
+        x = np.min(np.sum(np.fabs(x), axis = 1))        
         #wt += 1.0 / x
         wt2 += -x
     #wt2 = ((1 - alpha) / wt2) + (alpha * wt)

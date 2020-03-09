@@ -45,7 +45,7 @@ class Particle_Filter(object):
         self.particles = list()
         # for i in range(10):
         #     self.particles.append(Particle(x = 2, y = 340, maze = self.world, heading = 180, sensor_limit = self.sensor_limit))
-        for i in range(10):
+        for i in range(5):
             self.particles.append(Particle(x = 220, y = 40, maze = self.world, heading = 0, sensor_limit = self.sensor_limit))
         
         self.distribution = WeightedDistribution(particles = self.particles)
@@ -65,6 +65,8 @@ class Particle_Filter(object):
     def localize(self):
         readings_robot = []
         counter = 0
+        fil_count = 0
+        detection_size = 0
         #self.filtering()
         while(1):
             # Particle filtering
@@ -97,19 +99,30 @@ class Particle_Filter(object):
                         particle.lifetime += 1
                         particle.weight *= 2
                     total_weight += particle.weight
+                print("particle moved: Now filtering------------------")
                 if(total_weight == 0):
                     total_weight = 1e-8    
                 for particle in self.particles:
                     particle.weight /= total_weight
+                print('Filtering started')
                 self.filtering()
-                    
+                counter = 0
+                print("filtering ended")
+                print('Num particles left: ', len(self.particles))
+                for particle in self.particles:
+                    print('Pos: ', particle.x, particle.y)    
                 self.prev_pose = list(self.cur_pose)
+                print('----------------------------------------------------------------------')
+                if(fil_count % 15 == 0):
+                    fil_count = 0
+                fil_count += 1
             self.world.show_particles(particles = self.particles, show_frequency = self.particle_show_frequency)
             self.world.show_doors(doors=self.doors, show_frequency=self.particle_show_frequency)
             rospy.Subscriber('/rtabmap/odom', Odometry, self.callback)
             rospy.Subscriber('/cluster_decomposer/centroid_pose_array', PoseArray, self.collect)
             self.world.clear_objects()
             counter += 1
+            
 
     def eucDist(self):
          deltaTrans = math.sqrt((self.cur_pose[0] - self.prev_pose[0]) ** 2 + (self.cur_pose[1] - self.prev_pose[1]) ** 2)
@@ -124,30 +137,40 @@ class Particle_Filter(object):
         return particle_new
 
     def filtering(self):
+        print('Start filtering doors')
         self.dc = DetectionClustering(self.detected.copy(), min_samples=10)
+        print('Doors filtered')
+        return 0
         if('door' in self.dc.clusters):
             # self.pub_msg.data = list(np.ndarray.flatten(np.asarray(self.dc.clusters['door'])))
             # self.pub.publish(self.pub_msg)
             # self.rate.sleep()
+            print('Doors: ', len(self.dc.clusters['door']))
             readings_robot = self.zed_sensor_reading()
             #print("WTF AAAAAAA....I am sane, yes, totally")
             if(len(readings_robot) == 0):
                 return 0
 
-            #print("I am sane, yes, totally")
+            print("Particle weights measuring start-------")
             particle_weight_total = 0
             min_wt = 0
+            min_lt = np.inf
             for particle in self.particles:
                 readings_particle = particle.read_sensor(maze=self.world)
                 particle.weight = weight_gaussian_kernel(x1 = readings_robot, x2 = readings_particle, particle = particle)
                 min_wt = min(min_wt, particle.weight)
+                min_lt = min(min_lt, particle.lifetime)
                 #particle_weight_total += particle.weight
 
+            print('Particle weights measured-----------------')
             for particle in self.particles:
                 if(particle.active):
                     particle.weight += min_wt
+                    particle.lifetime -= (min_lt - 1)
                     particle.weight *= particle.lifetime
-                particle_weight_total +=  particle.weight  
+                particle_weight_total +=  particle.weight
+                #print('particle weight: ', particle.weight)
+            print('Particle weights calculated------------------')  
             
             if particle_weight_total == 0:
                 particle_weight_total = 1e-8
@@ -155,21 +178,25 @@ class Particle_Filter(object):
             for particle in self.particles:
                 particle.weight /= particle_weight_total
             
+            print('Weights normalized')
+
             self.distribution = WeightedDistribution(particles = self.particles)
-            particles_new = list()
+            print("Distribution ready")
+            particles_new_list = list()
             for i in range(self.num_particles):
                 particle_new = self.distribution.random_select()
                 while(particle_new == None):
                     particle_new = self.distribution.random_select()
-                particle_new.add_noise()
+                particle_new.add_filter_noise()
                 while(not self.check_permissible_space(x=particle_new.x, y=particle_new.y)):
                     particle_new = self.distribution.random_select()
                     while(particle_new == None):
                         particle_new = self.distribution.random_select()
-                    particle_new.add_noise()
+                    particle_new.add_filter_noise()
                 particle_new.active = True
-                particles_new.append(particle_new)
-            self.particles = particles_new
+                particles_new_list.append(particle_new)
+            self.particles = particles_new_list
+            print("New Particles ready")
 
     def initialize_particles(self):
         for i in range(self.num_particles):
@@ -215,7 +242,7 @@ class Particle_Filter(object):
 
     def collect(self, msg):
         for i, pose in enumerate(msg.poses):
-            if(pose != Pose()):
+            if(pose != Pose() and i == 0):
                 pos = pose.position
                 val = [pos.x, pos.y, pos.z]
                 key = 'door'
@@ -236,7 +263,7 @@ if __name__ == '__main__':
 
     window_width = 500
     window_height = 500
-    num_particles = 10
+    num_particles = 5
     sensor_limit_ratio = 0.3
     grid_height = 10
     grid_width = 10
@@ -248,4 +275,10 @@ if __name__ == '__main__':
     kernel_sigma = 500
     particle_show_frequency = 1
     lane = 4
-    Particle_Filter(window_width = window_width, window_height = window_height, num_particles = num_particles, sensor_limit_ratio = sensor_limit_ratio, grid_height = grid_height, grid_width = grid_width, lane = lane, num_rows = num_rows, num_cols = num_cols, wall_prob = wall_prob, random_seed = random_seed, robot_speed = robot_speed, kernel_sigma = kernel_sigma, particle_show_frequency = particle_show_frequency)
+    Particle_Filter(window_width = window_width, window_height = window_height,\
+         num_particles = num_particles, sensor_limit_ratio = sensor_limit_ratio,\
+              grid_height = grid_height, grid_width = grid_width,\
+                   lane = lane, num_rows = num_rows, num_cols = num_cols,\
+                        wall_prob = wall_prob, random_seed = random_seed,\
+                             robot_speed = robot_speed, kernel_sigma = kernel_sigma,\
+                                  particle_show_frequency = particle_show_frequency)
