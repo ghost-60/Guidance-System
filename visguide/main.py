@@ -154,11 +154,12 @@ class Particle_Filter(object):
                 particle.weight = weight_gaussian_kernel(x1 = readings_robot, x2 = readings_particle, particle = particle)
                 min_wt = min(min_wt, particle.weight)
                 min_lt = min(min_lt, particle.lifetime)
-                #particle_weight_total += particle.weight
+                particle_weight_total += particle.weight
 
-            print('Particle weights measured-----------------')
+            print('Particle weights measured-----------------', particle_weight_total, min_wt)
             min_lt = min(0, min_lt-1)
             print("Min lifetime: ", min_lt)
+            particle_weight_total_2 = 0
             for particle in self.particles:
                 if(particle.active):
                     particle.weight -= min_wt
@@ -196,6 +197,7 @@ class Particle_Filter(object):
                         particle_new = self.distribution.random_select()
                         particle_new.add_filter_noise()
                     particle_new.active = True
+                    particle.lifetime = 0
                     particles_new_list.append(particle_new)
                     particle_new_total += particle_new.weight
                     #else: 
