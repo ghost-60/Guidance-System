@@ -7,6 +7,7 @@ import time
 import rospy
 import math
 import cv2
+from copy import deepcopy
 
 from maze import Maze, Particle, WeightedDistribution, weight_gaussian_kernel
 from nav_msgs.msg import Odometry, OccupancyGrid
@@ -74,6 +75,8 @@ class Particle_Filter(object):
                 print(self.cur_pose)
                 total_weight = 0
                 total_lt = 0
+                count_fk = 0
+                count_fk_2 = 0
                 for particle in self.particles:
                     total_lt += particle.lifetime
                 print("Sum lifetime: ", total_lt)
@@ -81,38 +84,34 @@ class Particle_Filter(object):
                     permissible = particle.try_move(maze=self.world, cur_pose=self.cur_pose,\
                         prev_pose=self.prev_pose)
                     if(permissible == 0):
+                        # count_br = 0
+                        # dict_c = {}
+                        # for particle in self.particles:
+                        #     dict_c[particle] = particle.lifetime
                         particle.weight = 0
                         distribution = WeightedDistribution(particles = self.particles)
-                        #print("P1: ", particle.x, particle.y)
-                        particle_new = self.selectParticle(distribution)
-                        particle.x = particle_new.x
-                        particle.y = particle_new.y
-                        particle.heading = particle_new.heading
-                        particle.weight = particle_new.weight
-                        particle.lifetime = particle_new.lifetime
+                        self.selectParticle(distribution, particle = particle)
                         while(not self.check_permissible_space(x=particle.x, y=particle.y)):
-                            particle_new = self.selectParticle(distribution)
-                            particle.x = particle_new.x
-                            particle.y = particle_new.y
-                            particle.heading = particle_new.heading
-                            particle.weight = particle_new.weight
-                            particle.lifetime = particle_new.lifetime
-                        #print("P2: ", particle.x, particle.y)
+                            self.selectParticle(distribution, particle = particle)      
+                        # for particle in self.particles:
+                        #     if(dict_c[particle] != particle.lifetime):
+                        #         count_br += 1
+                        # if(count_br > 1):
+                        #     count_fk_2 += 1
                     else:
                         particle.lifetime += 1
-                        particle.weight *= 1.05
+                        particle.weight *= 2
                     total_weight += particle.weight
-                print("particle moved: Now filtering------------------", total_weight)
+                print("particle moved: Now filtering------------------", total_weight, count_fk_2)
                 if(total_weight == 0):
                     total_weight = 1e-8
-
-                for particle in self.particles:
-                    particle.weight /= total_weight
-
+                
                 total_lt = 0
                 for particle in self.particles:
+                    particle.weight /= total_weight
                     total_lt += particle.lifetime
-                print("Sum lifetime 2: ", total_lt)
+
+                print("Sum lifetime 2: ", total_lt, count_fk)
                 
                 print('Filtering started')
                 self.filtering()
@@ -135,11 +134,16 @@ class Particle_Filter(object):
          deltaTrans = math.sqrt((self.cur_pose[0] - self.prev_pose[0]) ** 2 + (self.cur_pose[1] - self.prev_pose[1]) ** 2)
          return deltaTrans
     
-    def selectParticle(self, distribution):
+    def selectParticle(self, distribution, particle):
         particle_new = distribution.random_select()
         while(particle_new == None):
             particle_new = distribution.random_select()
         particle_new.add_noise()
+        particle.x = particle_new.x
+        particle.y = particle_new.y 
+        particle.heading = particle_new.heading
+        particle.weight = particle_new.weight
+        particle.lifetime = particle_new.lifetime
         return particle_new
 
     def filtering(self):
@@ -190,44 +194,37 @@ class Particle_Filter(object):
             particle_new_total = 0
             for particle in self.particles:
                 particle.weight /= particle_weight_total
-                particle.weight *= particle.lifetime
+                #particle.weight *= particle.lifetime
                 particle_new_total += particle.weight
                 #print('particle weight: ', particle.weight)
 
             print('Weights normalized', particle_new_total)
 
             self.distribution = WeightedDistribution(particles = self.particles)
-            print("Distribution ready")
-            particles_new_list = list()
+            particle_new_list = list()
             countNone = 0
             particle_new_total = 0
             for i in range(self.num_particles):
-                particle_new = self.distribution.random_select()
-                # while(particle_new == None):
-                #     particle_new = self.distribution.random_select()
-                if(particle_new is not None):
-                    while(not self.check_permissible_space(x=particle_new.x, y=particle_new.y)):
-                        particle_new = self.distribution.random_select()
-                        particle_new.add_filter_noise()
-                    particle_new.active = True
-                    particle_new.lifetime = 1
-                    particles_new_list.append(particle_new)
-                    particle_new_total += particle_new.weight
-                    #else: 
-                    #    countNone += 1
-                else:
-                    countNone+=1
-                # while(not self.check_permissible_space(x=particle_new.x, y=particle_new.y)):
-                #     particle_new = self.distribution.random_select()
-                #     while(particle_new == None):
-                #         particle_new = self.distribution.random_select()
-                #     particle_new.add_filter_noise()  
-            self.particles = list(particles_new_list)
-            print("New Particles ready except: ", countNone, particle_new_total)
+                self.sample_particle(particle_new_list = particle_new_list)
+                particle_new_total += particle_new_list[i].weight  
+            self.particles = particle_new_list
+            print("New Particles ready: ", particle_new_total)
+
             if(particle_new_total < 1):
                 return 0
             for particle in self.particles:
                 particle.weight /= particle_new_total
+
+    def sample_particle(self, particle_new_list):
+        particle = Particle(x = 0, y = 0, maze = self.world, sensor_limit = self.sensor_limit)
+        self.selectParticle(self.distribution, particle)
+        while(not self.check_permissible_space(x=particle.x, y=particle.y)):
+            self.selectParticle(self.distribution, particle)
+        particle.active = True
+        particle.lifetime = 1
+        particle_new_list.append(particle)
+
+
 
     def initialize_particles(self):
         for i in range(self.num_particles):

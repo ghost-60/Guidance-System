@@ -250,7 +250,7 @@ class Particle(object):
         return (self.x, self.y, self.heading)
 
     def add_noise(self):
-        std = max(self.maze.grid_height, self.maze.grid_width) * 0.5
+        std = max(self.maze.grid_height, self.maze.grid_width) * 0.1
         self.x = self.x + np.random.normal(0, std)
         self.y = self.y + np.random.normal(0, std)
         self.heading = int(self.heading + np.random.normal(0, 360 * 0.05)) % 360
