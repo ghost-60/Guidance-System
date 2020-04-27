@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 #WTF IS GOING ON !!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -10,10 +10,14 @@ import bisect
 import argparse
 import random
 import math
+import struct
+import ctypes
+import sensor_msgs.point_cloud2 as pc2
 
 class Maze(object):
 
-    def __init__(self, grid_height, grid_width, lane, maze = None, num_rows = None, num_cols = None, wall_prob = None, random_seed = None):
+    def __init__(self, grid_height, grid_width, lane, maze = None,\
+         num_rows = None, num_cols = None, wall_prob = None, random_seed = None):
         self.grid_height = grid_height
         self.grid_width = grid_width
         self.num_rows = num_rows
@@ -30,9 +34,9 @@ class Maze(object):
 
         self.height = self.num_rows * self.grid_height
         self.width = self.num_cols * self.grid_width
-        self.landmarks = [[60, 0], [70, 0], [150, 0], [220, 0], [90, 40], [120, 40], [150, 40], \
+        self.landmarks = [[60, 0], [70, 0], [90, 0], [150, 0], [220, 0], [90, 40], [120, 40], [150, 40], \
                         [238, 48], [238, 170], [238, 310], [200, 170], [200, 155], \
-                        [60, 328], [50, 328], [150, 290], [100, 290], [60, 290], \
+                        [60, 328], [50, 328], [150, 290], [100, 290], [60, 290], [170, 328], \
                         [40, 150], [40, 140]]
         #self.landmarks = [[240, 140], [240, 180], [240, 320], [200, 160], [200, 170]]
         
@@ -241,7 +245,9 @@ class Particle(object):
         self.lane = maze.lane
         self.sensor_limit = sensor_limit
         self.active = True
-
+        self.init_x = x
+        self.init_y = y
+        self.init_heading = heading
         if noisy:
             self.add_noise()
 
@@ -253,13 +259,13 @@ class Particle(object):
         std = max(self.maze.grid_height, self.maze.grid_width) * 0.1
         self.x = self.x + np.random.normal(0, std)
         self.y = self.y + np.random.normal(0, std)
-        self.heading = int(self.heading + np.random.normal(0, 360 * 0.05)) % 360
+        self.heading = int(self.heading + np.random.normal(0, 360 * 0.01)) % 360
 
     def add_filter_noise(self):
         std = max(self.maze.grid_height, self.maze.grid_width) * 0.1
         self.x = self.x + np.random.normal(0, std)
         self.y = self.y + np.random.normal(0, std)
-        self.heading = int(self.heading + np.random.normal(0, 360 * 0.05)) % 360 
+        self.heading = int(self.heading + np.random.normal(0, 360 * 0.01)) % 360 
 
     def read_sensor(self, maze):
         readings = []
@@ -268,10 +274,26 @@ class Particle(object):
             delRot = math.atan2(self.y - self.maze.landmarks[i][1], self.x - self.maze.landmarks[i][0]) - math.radians(self.heading)
             #delRot = (delRot + (int(delRot / 360) + 1) * 360) % 360
             d = d / 10.0            
-            if(d < 10):
+            if(d < 5):
                 readings.append([d, delRot])
         return readings
-    
+
+    def read_cloud_weight(self, cloud_data):
+        total_wt = 0
+        for i in range(len(cloud_data)):
+            cur_min = np.inf
+            x, y = self.transform_point(x = cloud_data[i][0], y = cloud_data[i][1])
+            for i in range(len(self.maze.landmarks)):
+                d = math.sqrt((x - self.maze.landmarks[i][0]/10)**2 + (y - self.maze.landmarks[i][1]/10)**2)
+                cur_min = min(cur_min, d)
+            total_wt -= cur_min
+        return total_wt
+
+    def transform_point(self, x, y):
+        new_x = x * math.cos(math.radians(self.init_heading)) - y * math.sin(math.radians(self.init_heading)) + self.init_x
+        new_y = x * math.sin(math.radians(self.init_heading)) + y * math.cos(math.radians(self.init_heading)) + self.init_y
+        return new_x, new_y
+
     def try_move(self, maze, cur_pose, prev_pose, noisy = False):
         # angle = math.radians(self.heading)        
         # x = self.x + (dx * math.cos(angle) - dy * math.sin(angle))
