@@ -7,6 +7,7 @@ Building automated guidance system using robot-mounted or handheld zed-mini
 ## Current Status
 - Using Semantic SLAM through ROS nodes to improve localization in feature-less environments.
 - Semantic segmentation network is using ResNet18dilated + C1_deepsup architecture.
+- Using particle filtering to co register apriori map with online map in real time.
 - Rtabmap ROS implementaion is integrated with move_base package for path planning.
 - Using the segmented images and depth map, text/voice based commands are being generated.
 
@@ -57,7 +58,7 @@ $ roslaunch visguide zedm.launch
 ```
 4. To run particle filtering in apriori map:
 ```
-$ roslaunch visguide landmark.launch
+$ rosrun visguide main.py
 ```
 
 5. For visualisation
