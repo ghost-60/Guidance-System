@@ -2,7 +2,7 @@
 Building automated guidance system using robot-mounted or handheld zed-mini
 
 ![particle filtering](https://github.com/ghost-60/Guidance-System/blob/master/sample/exp2.png "particle filtering")
-![localization using rtabmap](https://github.com/ghost-60/Guidance-System/blob/master/sample/sample.png "localization using rtabmap")
+![localization using rtabmap](https://github.com/ghost-60/Guidance-System/blob/master/sample/loc.png "localization using rtabmap")
 ![Top 20 percent](https://github.com/ghost-60/Guidance-System/blob/master/sample/sample.png "A very good girl")
 ## Current Status
 - Using Semantic SLAM through ROS nodes to improve localization in feature-less environments.
